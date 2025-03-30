@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { toast } from "@/components/ui/use-toast"
+import { authApi } from "@/lib/api"
 
 const routes = [
   {
@@ -47,35 +48,20 @@ const routes = [
   },
 ]
 
-interface CurrentUser {
-  id: number
-  name: string
-  email: string
-  isLoggedIn: boolean
-}
-
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
   // Carica i dati dell'utente dal localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem("currentUser")
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser)
-        setCurrentUser(userData)
-      } catch (error) {
-        console.error("Errore nel parsing dei dati utente:", error)
-      }
-    }
+    const user = authApi.getCurrentUser()
+    setCurrentUser(user)
   }, [])
 
   const handleLogout = () => {
-    // Rimuovi i dati dell'utente dalla sessione
-    localStorage.removeItem("currentUser")
+    authApi.logout()
     setCurrentUser(null)
 
     toast({
@@ -88,6 +74,7 @@ export function Navbar() {
   }
 
   const getInitials = (name: string) => {
+    if (!name) return "U"
     return name
       .split(" ")
       .map((n) => n[0])

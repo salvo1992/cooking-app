@@ -12,37 +12,48 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { Recipe } from "@/lib/api"
+import { recipeApi, shoppingListApi, type Recipe } from "@/lib/api"
+import { authApi } from "@/lib/api"
 
 export default function RecipeDetailPage({ params }: { params: { slug: string } }) {
   const router = useRouter()
   const [recipe, setRecipe] = useState<Recipe | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedIngredients, setSelectedIngredients] = useState<number[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  // Carica la ricetta dal localStorage
+  // Carica la ricetta dal backend
   useEffect(() => {
-    try {
-      const savedRecipes = localStorage.getItem("recipes")
-      if (!savedRecipes) {
+    const fetchRecipe = async () => {
+      try {
+        // Verifica se l'utente è autenticato
+        if (!authApi.isAuthenticated()) {
+          toast({
+            title: "Accesso richiesto",
+            description: "Devi effettuare l'accesso per visualizzare questa ricetta",
+            variant: "destructive",
+          })
+          router.push("/login")
+          return
+        }
+
+        const recipeId = params.slug
+        const loadedRecipe = await recipeApi.getById(recipeId)
+        setRecipe(loadedRecipe)
         setLoading(false)
-        return
+      } catch (error) {
+        console.error("Errore durante il caricamento della ricetta:", error)
+        setLoading(false)
+        toast({
+          title: "Errore",
+          description: "Si è verificato un errore durante il caricamento della ricetta",
+          variant: "destructive",
+        })
       }
-
-      const recipes = JSON.parse(savedRecipes)
-      const recipeId = Number.parseInt(params.slug)
-      const foundRecipe = recipes.find((r: Recipe) => r.id === recipeId)
-
-      if (foundRecipe) {
-        setRecipe(foundRecipe)
-      }
-
-      setLoading(false)
-    } catch (error) {
-      console.error("Errore durante il caricamento della ricetta:", error)
-      setLoading(false)
     }
-  }, [params.slug])
+
+    fetchRecipe()
+  }, [params.slug, router])
 
   // Gestione della selezione degli ingredienti
   const toggleIngredientSelection = (index: number) => {
@@ -56,44 +67,37 @@ export default function RecipeDetailPage({ params }: { params: { slug: string } 
   }
 
   // Gestione dei preferiti
-  const toggleFavorite = () => {
+  const toggleFavorite = async () => {
     if (!recipe) return
+    setIsLoading(true)
 
     try {
-      // Recupera tutte le ricette
-      const savedRecipes = localStorage.getItem("recipes")
-      if (!savedRecipes) return
-
-      const recipes = JSON.parse(savedRecipes)
-      const recipeIndex = recipes.findIndex((r: Recipe) => r.id === recipe.id)
-
-      if (recipeIndex === -1) return
-
-      // Aggiorna lo stato preferito
-      recipes[recipeIndex].favorite = !recipes[recipeIndex].favorite
-
-      // Salva le ricette aggiornate
-      localStorage.setItem("recipes", JSON.stringify(recipes))
+      const recipeId = recipe._id || recipe.id || ""
+      const updatedRecipe = await recipeApi.toggleFavorite(recipeId)
 
       // Aggiorna lo stato locale
-      setRecipe({
-        ...recipe,
-        favorite: !recipe.favorite,
-      })
+      setRecipe(updatedRecipe)
 
       toast({
-        title: recipe.favorite ? "Rimosso dai preferiti" : "Aggiunto ai preferiti",
-        description: recipe.favorite
-          ? "Questa ricetta è stata rimossa dai preferiti"
-          : "Questa ricetta è stata aggiunta ai preferiti",
+        title: updatedRecipe.favorite ? "Aggiunto ai preferiti" : "Rimosso dai preferiti",
+        description: updatedRecipe.favorite
+          ? "Questa ricetta è stata aggiunta ai preferiti"
+          : "Questa ricetta è stata rimossa dai preferiti",
       })
     } catch (error) {
       console.error("Errore durante l'aggiornamento dei preferiti:", error)
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'aggiornamento dei preferiti",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   // Aggiunta degli ingredienti alla lista della spesa
-  const addToShoppingList = () => {
+  const addToShoppingList = async () => {
     if (!recipe || selectedIngredients.length === 0) {
       toast({
         title: "Nessun ingrediente selezionato",
@@ -103,29 +107,14 @@ export default function RecipeDetailPage({ params }: { params: { slug: string } 
       return
     }
 
+    setIsLoading(true)
+
     try {
-      // Recupera la lista della spesa esistente
-      const savedItems = localStorage.getItem("shoppingItems")
-      const shoppingItems = savedItems ? JSON.parse(savedItems) : []
+      // Prepara gli ingredienti selezionati
+      const selectedIngredientsData = selectedIngredients.map((index) => recipe.ingredients[index])
 
-      // Genera un nuovo ID di partenza
-      let nextId = shoppingItems.length > 0 ? Math.max(...shoppingItems.map((item: any) => item.id)) + 1 : 1
-
-      // Aggiungi gli ingredienti selezionati
-      const selectedIngredientsData = selectedIngredients.map((index) => {
-        const ingredient = recipe.ingredients[index]
-        return {
-          id: nextId++,
-          name: ingredient.name,
-          quantity: ingredient.quantity,
-          checked: false,
-          fromRecipe: recipe.title,
-        }
-      })
-
-      // Aggiorna la lista della spesa
-      const updatedShoppingList = [...shoppingItems, ...selectedIngredientsData]
-      localStorage.setItem("shoppingItems", JSON.stringify(updatedShoppingList))
+      // Aggiungi gli ingredienti alla lista della spesa
+      await shoppingListApi.addMany(selectedIngredientsData, recipe.title)
 
       // Resetta la selezione
       setSelectedIngredients([])
@@ -141,6 +130,8 @@ export default function RecipeDetailPage({ params }: { params: { slug: string } 
         description: "Si è verificato un errore durante l'aggiunta degli ingredienti alla lista della spesa",
         variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -179,7 +170,7 @@ export default function RecipeDetailPage({ params }: { params: { slug: string } 
               Torna alle ricette
             </Link>
           </Button>
-          <Button variant="ghost" size="icon" onClick={toggleFavorite} className="ml-auto">
+          <Button variant="ghost" size="icon" onClick={toggleFavorite} className="ml-auto" disabled={isLoading}>
             {recipe.favorite ? (
               <Heart className="h-5 w-5 fill-red-500 text-red-500" />
             ) : (
@@ -220,9 +211,13 @@ export default function RecipeDetailPage({ params }: { params: { slug: string } 
                   variant="outline"
                   size="sm"
                   onClick={addToShoppingList}
-                  disabled={selectedIngredients.length === 0}
+                  disabled={selectedIngredients.length === 0 || isLoading}
                 >
-                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  {isLoading ? (
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  ) : (
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                  )}
                   Aggiungi alla lista
                 </Button>
               </div>

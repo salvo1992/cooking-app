@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
 interface RecipeCardProps {
-  id: number
+  id: string
   title: string
   description: string
   image: string

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "@/components/ui/use-toast"
+import { recipeApi } from "@/lib/api"
+import { authApi } from "@/lib/api"
 
 interface Ingredient {
   name: string
@@ -34,6 +36,19 @@ export default function NewRecipePage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([{ name: "", quantity: "" }])
   const [steps, setSteps] = useState<Step[]>([{ description: "" }])
   const [notes, setNotes] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Verifica se l'utente è autenticato
+  useEffect(() => {
+    if (!authApi.isAuthenticated()) {
+      toast({
+        title: "Accesso richiesto",
+        description: "Devi effettuare l'accesso per creare una ricetta",
+        variant: "destructive",
+      })
+      router.push("/login")
+    }
+  }, [router])
 
   const addIngredient = () => {
     setIngredients([...ingredients, { name: "", quantity: "" }])
@@ -69,69 +84,58 @@ export default function NewRecipePage() {
     setSteps(newSteps)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
 
-    // Validazione
-    if (!title || !description || !time || !difficulty) {
-      toast({
-        title: "Errore",
-        description: "Compila tutti i campi obbligatori",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (ingredients.some((ing) => !ing.name || !ing.quantity)) {
-      toast({
-        title: "Errore",
-        description: "Compila tutti gli ingredienti o rimuovi quelli vuoti",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (steps.some((step) => !step.description)) {
-      toast({
-        title: "Errore",
-        description: "Compila tutti i passaggi o rimuovi quelli vuoti",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Preparazione dei dati
-    const recipeData = {
-      title,
-      description,
-      image: "/placeholder.svg?height=300&width=400", // Immagine di default
-      time,
-      difficulty,
-      ingredients,
-      steps: steps.map((step) => step.description),
-      notes,
-      favorite: false,
-      personal: true,
-    }
-
-    // Salva la ricetta nel localStorage
     try {
-      // Recupera le ricette esistenti
-      const existingRecipesJSON = localStorage.getItem("recipes")
-      const existingRecipes = existingRecipesJSON ? JSON.parse(existingRecipesJSON) : []
-
-      // Genera un nuovo ID
-      const newId = existingRecipes.length > 0 ? Math.max(...existingRecipes.map((r: any) => r.id)) + 1 : 1
-
-      // Crea la nuova ricetta con ID
-      const newRecipe = {
-        id: newId,
-        ...recipeData,
+      // Validazione
+      if (!title || !description || !time || !difficulty) {
+        toast({
+          title: "Errore",
+          description: "Compila tutti i campi obbligatori",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
       }
 
-      // Aggiungi la nuova ricetta all'array e salva
-      existingRecipes.push(newRecipe)
-      localStorage.setItem("recipes", JSON.stringify(existingRecipes))
+      if (ingredients.some((ing) => !ing.name || !ing.quantity)) {
+        toast({
+          title: "Errore",
+          description: "Compila tutti gli ingredienti o rimuovi quelli vuoti",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
+      }
+
+      if (steps.some((step) => !step.description)) {
+        toast({
+          title: "Errore",
+          description: "Compila tutti i passaggi o rimuovi quelli vuoti",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // Preparazione dei dati
+      const recipeData = {
+        title,
+        description,
+        image: "/placeholder.svg?height=300&width=400", // Immagine di default
+        time,
+        difficulty,
+        ingredients,
+        steps: steps.map((step) => step.description),
+        notes,
+        favorite: false,
+        personal: true,
+      }
+
+      // Salva la ricetta nel backend
+      await recipeApi.add(recipeData)
 
       toast({
         title: "Ricetta salvata",
@@ -142,13 +146,15 @@ export default function NewRecipePage() {
       setTimeout(() => {
         router.push("/ricette")
       }, 1500)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Errore durante il salvataggio della ricetta:", error)
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante il salvataggio della ricetta",
+        description: error.response?.data?.error || "Si è verificato un errore durante il salvataggio della ricetta",
         variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -326,7 +332,16 @@ export default function NewRecipePage() {
               <Button type="button" variant="outline" onClick={() => router.push("/ricette")}>
                 Annulla
               </Button>
-              <Button type="submit">Salva Ricetta</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    Salvataggio...
+                  </>
+                ) : (
+                  "Salva Ricetta"
+                )}
+              </Button>
             </CardFooter>
           </Card>
         </form>

@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RecipeCard } from "@/components/recipe-card"
-import type { Recipe } from "@/lib/api"
+import { recipeApi, type Recipe } from "@/lib/api"
+import { toast } from "@/components/ui/use-toast"
+import { authApi } from "@/lib/api"
 
 export default function RecipePage() {
   const router = useRouter()
@@ -18,116 +20,38 @@ export default function RecipePage() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Carica le ricette dal localStorage all'avvio
+  // Carica le ricette dal backend
   useEffect(() => {
-    try {
-      const savedRecipes = localStorage.getItem("recipes")
-      const loadedRecipes = savedRecipes ? JSON.parse(savedRecipes) : []
+    const fetchRecipes = async () => {
+      try {
+        // Verifica se l'utente è autenticato
+        if (!authApi.isAuthenticated()) {
+          // Se non è autenticato, mostra un messaggio e reindirizza al login
+          toast({
+            title: "Accesso richiesto",
+            description: "Devi effettuare l'accesso per visualizzare le ricette",
+            variant: "destructive",
+          })
+          router.push("/login")
+          return
+        }
 
-      // Se non ci sono ricette salvate, carica alcuni esempi
-      if (loadedRecipes.length === 0) {
-        const exampleRecipes: Recipe[] = [
-          {
-            id: 1,
-            title: "Pasta alla Carbonara",
-            description: "La classica pasta alla carbonara romana con uova, guanciale, pecorino e pepe nero.",
-            image: "/placeholder.svg?height=300&width=400",
-            time: "30 min",
-            difficulty: "Media",
-            ingredients: [
-              { name: "Pasta", quantity: "320g" },
-              { name: "Guanciale", quantity: "150g" },
-              { name: "Uova", quantity: "4" },
-              { name: "Pecorino Romano", quantity: "100g" },
-              { name: "Pepe nero", quantity: "q.b." },
-              { name: "Sale", quantity: "q.b." },
-            ],
-            steps: [
-              "Tagliare il guanciale a listarelle e rosolarlo in padella a fuoco medio-basso fino a renderlo croccante.",
-              "In una ciotola, sbattere le uova con il pecorino grattugiato e il pepe nero.",
-              "Cuocere la pasta in abbondante acqua salata.",
-              "Scolare la pasta al dente e versarla nella padella con il guanciale, mescolando bene.",
-              "Togliere la padella dal fuoco e aggiungere il composto di uova e formaggio, mescolando velocemente.",
-              "Servire immediatamente con una spolverata di pecorino e pepe nero.",
-            ],
-            favorite: true,
-            personal: false,
-          },
-          {
-            id: 2,
-            title: "Risotto ai Funghi",
-            description: "Cremoso risotto con funghi porcini, cipolla, vino bianco e parmigiano.",
-            image: "/placeholder.svg?height=300&width=400",
-            time: "45 min",
-            difficulty: "Media",
-            ingredients: [
-              { name: "Riso Carnaroli", quantity: "320g" },
-              { name: "Funghi porcini", quantity: "200g" },
-              { name: "Cipolla", quantity: "1" },
-              { name: "Vino bianco", quantity: "100ml" },
-              { name: "Brodo vegetale", quantity: "1L" },
-              { name: "Parmigiano Reggiano", quantity: "80g" },
-              { name: "Burro", quantity: "50g" },
-              { name: "Olio d'oliva", quantity: "2 cucchiai" },
-              { name: "Sale", quantity: "q.b." },
-              { name: "Pepe", quantity: "q.b." },
-              { name: "Prezzemolo", quantity: "q.b." },
-            ],
-            steps: [
-              "Preparare il brodo vegetale e tenerlo caldo.",
-              "Tritare finemente la cipolla e farla appassire in una casseruola con un po' di olio.",
-              "Pulire i funghi, tagliarli a fettine e aggiungerli alla cipolla. Cuocere per qualche minuto.",
-              "Aggiungere il riso e tostarlo per un paio di minuti, mescolando continuamente.",
-              "Sfumare con il vino bianco e lasciare evaporare.",
-              "Aggiungere il brodo caldo un mestolo alla volta, aspettando che venga assorbito prima di aggiungerne altro.",
-              "Continuare fino a cottura del riso (circa 18 minuti).",
-              "A fuoco spento, mantecare con burro e parmigiano. Aggiustare di sale e pepe.",
-              "Servire con una spolverata di prezzemolo fresco tritato.",
-            ],
-            favorite: false,
-            personal: false,
-          },
-          {
-            id: 3,
-            title: "Insalata Caprese",
-            description: "Fresca insalata con pomodori, mozzarella di bufala, basilico e olio d'oliva.",
-            image: "/placeholder.svg?height=300&width=400",
-            time: "10 min",
-            difficulty: "Facile",
-            ingredients: [
-              { name: "Pomodori maturi", quantity: "3" },
-              { name: "Mozzarella di bufala", quantity: "250g" },
-              { name: "Basilico fresco", quantity: "q.b." },
-              { name: "Olio extravergine d'oliva", quantity: "q.b." },
-              { name: "Sale", quantity: "q.b." },
-              { name: "Pepe nero", quantity: "q.b." },
-            ],
-            steps: [
-              "Lavare e affettare i pomodori.",
-              "Affettare la mozzarella.",
-              "Disporre alternando fette di pomodoro e mozzarella su un piatto.",
-              "Aggiungere le foglie di basilico.",
-              "Condire con olio extravergine d'oliva, sale e pepe.",
-              "Servire a temperatura ambiente.",
-            ],
-            favorite: true,
-            personal: false,
-          },
-        ]
-
-        // Salva le ricette di esempio
-        localStorage.setItem("recipes", JSON.stringify(exampleRecipes))
-        setRecipes(exampleRecipes)
-      } else {
+        const loadedRecipes = await recipeApi.getAll()
         setRecipes(loadedRecipes)
+        setLoading(false)
+      } catch (error) {
+        console.error("Errore durante il caricamento delle ricette:", error)
+        setLoading(false)
+        toast({
+          title: "Errore",
+          description: "Si è verificato un errore durante il caricamento delle ricette",
+          variant: "destructive",
+        })
       }
-
-      setLoading(false)
-    } catch (error) {
-      console.error("Errore durante il caricamento delle ricette:", error)
-      setLoading(false)
     }
-  }, [])
+
+    fetchRecipes()
+  }, [router])
 
   // Filtra le ricette in base alla ricerca
   const filteredRecipes = recipes.filter(
@@ -151,30 +75,28 @@ export default function RecipePage() {
     router.push("/ricette/nuova")
   }
 
-  const handleRecipeClick = (id: number) => {
+  const handleRecipeClick = (id: string) => {
     router.push(`/ricette/${id}`)
   }
 
-  const handleToggleFavorite = (id: number) => {
+  const handleToggleFavorite = async (id: string) => {
     try {
-      // Trova la ricetta da aggiornare
-      const recipeIndex = recipes.findIndex((recipe) => recipe.id === id)
-      if (recipeIndex === -1) return
+      const updatedRecipe = await recipeApi.toggleFavorite(id)
 
-      // Crea una copia dell'array delle ricette
-      const updatedRecipes = [...recipes]
+      // Aggiorna lo stato locale
+      setRecipes(recipes.map((recipe) => (recipe._id === id || recipe.id === id ? updatedRecipe : recipe)))
 
-      // Aggiorna lo stato preferito
-      updatedRecipes[recipeIndex] = {
-        ...updatedRecipes[recipeIndex],
-        favorite: !updatedRecipes[recipeIndex].favorite,
-      }
-
-      // Aggiorna lo stato e salva nel localStorage
-      setRecipes(updatedRecipes)
-      localStorage.setItem("recipes", JSON.stringify(updatedRecipes))
+      toast({
+        title: updatedRecipe.favorite ? "Aggiunto ai preferiti" : "Rimosso dai preferiti",
+        description: updatedRecipe.favorite ? "Ricetta aggiunta ai preferiti" : "Ricetta rimossa dai preferiti",
+      })
     } catch (error) {
       console.error("Errore durante l'aggiornamento dei preferiti:", error)
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'aggiornamento dei preferiti",
+        variant: "destructive",
+      })
     }
   }
 
@@ -240,8 +162,8 @@ export default function RecipePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredRecipes.map((recipe) => (
                   <RecipeCard
-                    key={recipe.id}
-                    id={recipe.id}
+                    key={recipe._id || recipe.id}
+                    id={recipe._id || recipe.id || ""}
                     title={recipe.title}
                     description={recipe.description}
                     image={recipe.image}
@@ -249,8 +171,8 @@ export default function RecipePage() {
                     difficulty={recipe.difficulty}
                     favorite={recipe.favorite}
                     personal={recipe.personal}
-                    onClick={() => handleRecipeClick(recipe.id)}
-                    onToggleFavorite={() => handleToggleFavorite(recipe.id)}
+                    onClick={() => handleRecipeClick(recipe._id || recipe.id || "")}
+                    onToggleFavorite={() => handleToggleFavorite(recipe._id || recipe.id || "")}
                   />
                 ))}
               </div>
@@ -283,8 +205,8 @@ export default function RecipePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {personalRecipes.map((recipe) => (
                   <RecipeCard
-                    key={recipe.id}
-                    id={recipe.id}
+                    key={recipe._id || recipe.id}
+                    id={recipe._id || recipe.id || ""}
                     title={recipe.title}
                     description={recipe.description}
                     image={recipe.image}
@@ -292,8 +214,8 @@ export default function RecipePage() {
                     difficulty={recipe.difficulty}
                     favorite={recipe.favorite}
                     personal={recipe.personal}
-                    onClick={() => handleRecipeClick(recipe.id)}
-                    onToggleFavorite={() => handleToggleFavorite(recipe.id)}
+                    onClick={() => handleRecipeClick(recipe._id || recipe.id || "")}
+                    onToggleFavorite={() => handleToggleFavorite(recipe._id || recipe.id || "")}
                   />
                 ))}
               </div>
@@ -324,8 +246,8 @@ export default function RecipePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {favoriteRecipes.map((recipe) => (
                   <RecipeCard
-                    key={recipe.id}
-                    id={recipe.id}
+                    key={recipe._id || recipe.id}
+                    id={recipe._id || recipe.id || ""}
                     title={recipe.title}
                     description={recipe.description}
                     image={recipe.image}
@@ -333,8 +255,8 @@ export default function RecipePage() {
                     difficulty={recipe.difficulty}
                     favorite={recipe.favorite}
                     personal={recipe.personal}
-                    onClick={() => handleRecipeClick(recipe.id)}
-                    onToggleFavorite={() => handleToggleFavorite(recipe.id)}
+                    onClick={() => handleRecipeClick(recipe._id || recipe.id || "")}
+                    onToggleFavorite={() => handleToggleFavorite(recipe._id || recipe.id || "")}
                   />
                 ))}
               </div>

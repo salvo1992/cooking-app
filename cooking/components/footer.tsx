@@ -8,7 +8,7 @@ export function Footer() {
         <div className="flex items-center gap-2">
           <ChefHat className="h-5 w-5" />
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} CucinaApp. Tutti i diritti riservati di propieta' di The viking of the web.
+            © {new Date().getFullYear()} CucinaApp. Tutti i diritti riservati.
           </p>
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">

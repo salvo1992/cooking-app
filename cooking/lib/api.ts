@@ -1,6 +1,56 @@
+import axios from "axios"
+
+// Configurazione di base per axios
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+
+// Funzione per ottenere il token JWT dal localStorage
+const getToken = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("token")
+  }
+  return null
+}
+
+// Configurazione di axios con intercettori per aggiungere il token
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+})
+
+// Aggiungi il token a ogni richiesta
+api.interceptors.request.use(
+  (config) => {
+    const token = getToken()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => Promise.reject(error),
+)
+
 // Tipi di dati
+export interface User {
+  id: string
+  name: string
+  email: string
+  preferences?: {
+    notifications: boolean
+    expiryAlerts: boolean
+    recipeSuggestions: boolean
+  }
+}
+
+export interface AuthResponse {
+  token: string
+  user: User
+}
+
 export interface Recipe {
-  id: number
+  _id?: string
+  id?: string
   title: string
   description: string
   image: string
@@ -19,546 +69,484 @@ export interface Ingredient {
   selected?: boolean
 }
 
-export interface ShoppingListItem {
-  id: number
+export interface ShoppingItem {
+  _id?: string
+  id?: string
   name: string
   quantity: string
   checked: boolean
-  recipe?: string
+  fromRecipe?: string
 }
 
 export interface PantryItem {
-  id: number
+  _id?: string
+  id?: string
   name: string
   quantity: string
-  expirationDate: string
   category: string
+  expiryDate: string
+  isExpired: boolean
+  isExpiringSoon: boolean
 }
 
 export interface Note {
-  id: number
+  _id?: string
+  id?: string
   title: string
   content: string
-  date: string
   category?: string
+  createdAt?: string
+}
+
+export interface DietPlanUserData {
+  age: number
+  gender: string
+  weight: number
+  height: number
+  activityLevel: string
+  goal: string
+  preferences: string[]
+  restrictions: string[]
+}
+
+export interface DietPlanResults {
+  bmi: number
+  bmiCategory: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+export interface DietPlanMeal {
+  type: string
+  name: string
+  ingredients: string[]
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+export interface DietPlanDay {
+  day: number
+  meals: DietPlanMeal[]
 }
 
 export interface DietPlan {
-  id: number
+  _id?: string
+  id?: string
   name: string
-  date: string
-  userData: {
-    age: number
-    gender: string
-    weight: number
-    height: number
-    activityLevel: string
-    goal: string
-    preferences: string[]
-    restrictions: string[]
-  }
-  results: {
-    bmi: number
-    bmiCategory: string
-    calories: number
-    protein: number
-    carbs: number
-    fat: number
-  }
-  mealPlan: {
-    day: number
-    meals: {
-      type: string
-      name: string
-      ingredients: string[]
-      calories: number
-      protein: number
-      carbs: number
-      fat: number
-    }[]
-  }[]
+  userData: DietPlanUserData
+  results: DietPlanResults
+  mealPlan: DietPlanDay[]
   tips: string[]
+  createdAt?: string
+}
+
+// API per l'autenticazione
+export const authApi = {
+  register: async (name: string, email: string, password: string): Promise<AuthResponse> => {
+    try {
+      const response = await api.post("/auth/register", { name, email, password })
+      return response.data
+    } catch (error) {
+      console.error("Errore durante la registrazione:", error)
+      throw error
+    }
+  },
+
+  login: async (email: string, password: string): Promise<AuthResponse> => {
+    try {
+      const response = await api.post("/auth/login", { email, password })
+      return response.data
+    } catch (error) {
+      console.error("Errore durante il login:", error)
+      throw error
+    }
+  },
+
+  logout: (): void => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token")
+      localStorage.removeItem("user")
+    }
+  },
+
+  getCurrentUser: (): User | null => {
+    if (typeof window !== "undefined") {
+      const userJson = localStorage.getItem("user")
+      return userJson ? JSON.parse(userJson) : null
+    }
+    return null
+  },
+
+  isAuthenticated: (): boolean => {
+    return !!getToken()
+  },
+}
+
+// API per il profilo utente
+export const userApi = {
+  getProfile: async (): Promise<User> => {
+    try {
+      const response = await api.get("/user/profile")
+      return response.data
+    } catch (error) {
+      console.error("Errore durante il recupero del profilo:", error)
+      throw error
+    }
+  },
+
+  updateProfile: async (name: string, email: string, preferences?: any): Promise<User> => {
+    try {
+      const response = await api.put("/user/profile", { name, email, preferences })
+      return response.data
+    } catch (error) {
+      console.error("Errore durante l'aggiornamento del profilo:", error)
+      throw error
+    }
+  },
+
+  updatePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    try {
+      await api.put("/user/password", { currentPassword, newPassword })
+    } catch (error) {
+      console.error("Errore durante l'aggiornamento della password:", error)
+      throw error
+    }
+  },
 }
 
 // API per le ricette
 export const recipeApi = {
-  getAll: (): Recipe[] => {
+  getAll: async (query?: string, favorite?: boolean, personal?: boolean): Promise<Recipe[]> => {
     try {
-      const recipes = localStorage.getItem("recipes")
-      return recipes ? JSON.parse(recipes) : []
+      const params: any = {}
+      if (query) params.query = query
+      if (favorite !== undefined) params.favorite = favorite.toString()
+      if (personal !== undefined) params.personal = personal.toString()
+
+      const response = await api.get("/recipes", { params })
+      return response.data.map((recipe: any) => ({
+        ...recipe,
+        id: recipe._id, // Aggiungi id per compatibilità
+      }))
     } catch (error) {
       console.error("Errore durante il recupero delle ricette:", error)
-      return []
+      throw error
     }
   },
 
-  getById: (id: number): Recipe | null => {
+  getById: async (id: string): Promise<Recipe> => {
     try {
-      const recipes = recipeApi.getAll()
-      return recipes.find((recipe) => recipe.id === id) || null
-    } catch (error) {
-      console.error("Errore durante il recupero della ricetta:", error)
-      return null
-    }
-  },
-
-  getBySlug: (slug: string): Recipe | null => {
-    try {
-      const recipes = recipeApi.getAll()
-      return recipes.find((recipe) => recipe.title.toLowerCase().replace(/ /g, "-") === slug) || null
-    } catch (error) {
-      console.error("Errore durante il recupero della ricetta:", error)
-      return null
-    }
-  },
-
-  add: (recipe: Partial<Recipe>): Recipe => {
-    try {
-      const recipes = recipeApi.getAll()
-
-      // Genera un nuovo ID
-      const newId = recipes.length > 0 ? Math.max(...recipes.map((r) => r.id)) + 1 : 1
-
-      // Crea la nuova ricetta
-      const newRecipe: Recipe = {
-        id: newId,
-        title: recipe.title || "Nuova Ricetta",
-        description: recipe.description || "",
-        image: recipe.image || "/placeholder.svg?height=300&width=400",
-        time: recipe.time || "N/A",
-        difficulty: recipe.difficulty || "Media",
-        ingredients: recipe.ingredients || [],
-        steps: recipe.steps || [],
-        notes: recipe.notes || "",
-        favorite: recipe.favorite || false,
-        personal: recipe.personal !== undefined ? recipe.personal : true,
+      const response = await api.get(`/recipes/${id}`)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
       }
+    } catch (error) {
+      console.error("Errore durante il recupero della ricetta:", error)
+      throw error
+    }
+  },
 
-      // Aggiungi la ricetta all'array e salva
-      recipes.push(newRecipe)
-      localStorage.setItem("recipes", JSON.stringify(recipes))
-
-      return newRecipe
+  add: async (recipe: Omit<Recipe, "_id" | "id">): Promise<Recipe> => {
+    try {
+      const response = await api.post("/recipes", recipe)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
+      }
     } catch (error) {
       console.error("Errore durante l'aggiunta della ricetta:", error)
       throw error
     }
   },
 
-  update: (id: number, updates: Partial<Recipe>): Recipe | null => {
+  update: async (id: string, recipe: Partial<Recipe>): Promise<Recipe> => {
     try {
-      const recipes = recipeApi.getAll()
-      const index = recipes.findIndex((recipe) => recipe.id === id)
-
-      if (index === -1) return null
-
-      // Aggiorna la ricetta
-      recipes[index] = { ...recipes[index], ...updates }
-      localStorage.setItem("recipes", JSON.stringify(recipes))
-
-      return recipes[index]
+      const response = await api.put(`/recipes/${id}`, recipe)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
+      }
     } catch (error) {
       console.error("Errore durante l'aggiornamento della ricetta:", error)
-      return null
+      throw error
     }
   },
 
-  delete: (id: number): boolean => {
+  toggleFavorite: async (id: string): Promise<Recipe> => {
     try {
-      const recipes = recipeApi.getAll()
-      const filteredRecipes = recipes.filter((recipe) => recipe.id !== id)
-
-      if (filteredRecipes.length === recipes.length) return false
-
-      localStorage.setItem("recipes", JSON.stringify(filteredRecipes))
-      return true
-    } catch (error) {
-      console.error("Errore durante l'eliminazione della ricetta:", error)
-      return false
-    }
-  },
-
-  toggleFavorite: (id: number): Recipe | null => {
-    try {
-      const recipe = recipeApi.getById(id)
-      if (!recipe) return null
-
-      return recipeApi.update(id, { favorite: !recipe.favorite })
+      const response = await api.patch(`/recipes/${id}/favorite`)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
+      }
     } catch (error) {
       console.error("Errore durante l'aggiornamento dei preferiti:", error)
-      return null
+      throw error
+    }
+  },
+
+  delete: async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/recipes/${id}`)
+    } catch (error) {
+      console.error("Errore durante l'eliminazione della ricetta:", error)
+      throw error
     }
   },
 }
 
 // API per la lista della spesa
 export const shoppingListApi = {
-  getAll: (): ShoppingListItem[] => {
+  getAll: async (fromRecipe?: boolean, checked?: boolean): Promise<ShoppingItem[]> => {
     try {
-      const items = localStorage.getItem("shoppingList")
-      return items ? JSON.parse(items) : []
+      const params: any = {}
+      if (fromRecipe !== undefined) params.fromRecipe = fromRecipe.toString()
+      if (checked !== undefined) params.checked = checked.toString()
+
+      const response = await api.get("/shopping-list", { params })
+      return response.data.map((item: any) => ({
+        ...item,
+        id: item._id, // Aggiungi id per compatibilità
+      }))
     } catch (error) {
       console.error("Errore durante il recupero della lista della spesa:", error)
-      return []
+      throw error
     }
   },
 
-  add: (item: Omit<ShoppingListItem, "id">): ShoppingListItem => {
+  add: async (item: Omit<ShoppingItem, "_id" | "id">): Promise<ShoppingItem> => {
     try {
-      const items = shoppingListApi.getAll()
-
-      // Genera un nuovo ID
-      const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1
-
-      // Crea il nuovo elemento
-      const newItem: ShoppingListItem = {
-        id: newId,
-        name: item.name,
-        quantity: item.quantity,
-        checked: item.checked || false,
-        recipe: item.recipe,
+      const response = await api.post("/shopping-list", item)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
       }
-
-      // Aggiungi l'elemento all'array e salva
-      items.push(newItem)
-      localStorage.setItem("shoppingList", JSON.stringify(items))
-
-      return newItem
     } catch (error) {
       console.error("Errore durante l'aggiunta dell'elemento alla lista della spesa:", error)
       throw error
     }
   },
 
-  addMany: (ingredients: Ingredient[], recipeName?: string): ShoppingListItem[] => {
+  addMany: async (items: Ingredient[], fromRecipe?: string): Promise<ShoppingItem[]> => {
     try {
-      const items = shoppingListApi.getAll()
-      const newItems: ShoppingListItem[] = []
-
-      // Genera un nuovo ID di partenza
-      let nextId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1
-
-      // Crea i nuovi elementi
-      for (const ingredient of ingredients) {
-        const newItem: ShoppingListItem = {
-          id: nextId++,
-          name: ingredient.name,
-          quantity: ingredient.quantity,
-          checked: false,
-          recipe: recipeName,
-        }
-
-        newItems.push(newItem)
-      }
-
-      // Aggiungi gli elementi all'array e salva
-      const updatedItems = [...items, ...newItems]
-      localStorage.setItem("shoppingList", JSON.stringify(updatedItems))
-
-      return newItems
+      const response = await api.post("/shopping-list/batch", { items, fromRecipe })
+      return response.data.map((item: any) => ({
+        ...item,
+        id: item._id, // Aggiungi id per compatibilità
+      }))
     } catch (error) {
-      console.error("Errore durante l'aggiunta degli ingredienti alla lista della spesa:", error)
+      console.error("Errore durante l'aggiunta degli elementi alla lista della spesa:", error)
       throw error
     }
   },
 
-  update: (id: number, updates: Partial<ShoppingListItem>): ShoppingListItem | null => {
+  update: async (id: string, checked: boolean): Promise<ShoppingItem> => {
     try {
-      const items = shoppingListApi.getAll()
-      const index = items.findIndex((item) => item.id === id)
-
-      if (index === -1) return null
-
-      // Aggiorna l'elemento
-      items[index] = { ...items[index], ...updates }
-      localStorage.setItem("shoppingList", JSON.stringify(items))
-
-      return items[index]
+      const response = await api.patch(`/shopping-list/${id}`, { checked })
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
+      }
     } catch (error) {
       console.error("Errore durante l'aggiornamento dell'elemento della lista della spesa:", error)
-      return null
+      throw error
     }
   },
 
-  delete: (id: number): boolean => {
+  delete: async (id: string): Promise<void> => {
     try {
-      const items = shoppingListApi.getAll()
-      const filteredItems = items.filter((item) => item.id !== id)
-
-      if (filteredItems.length === items.length) return false
-
-      localStorage.setItem("shoppingList", JSON.stringify(filteredItems))
-      return true
+      await api.delete(`/shopping-list/${id}`)
     } catch (error) {
       console.error("Errore durante l'eliminazione dell'elemento della lista della spesa:", error)
-      return false
+      throw error
     }
   },
 
-  deleteChecked: (): boolean => {
+  deleteChecked: async (): Promise<void> => {
     try {
-      const items = shoppingListApi.getAll()
-      const filteredItems = items.filter((item) => !item.checked)
-
-      if (filteredItems.length === items.length) return false
-
-      localStorage.setItem("shoppingList", JSON.stringify(filteredItems))
-      return true
+      await api.delete("/shopping-list", { params: { checked: "true" } })
     } catch (error) {
       console.error("Errore durante l'eliminazione degli elementi selezionati:", error)
-      return false
+      throw error
     }
   },
 
-  deleteAll: (): boolean => {
+  deleteAll: async (): Promise<void> => {
     try {
-      localStorage.setItem("shoppingList", JSON.stringify([]))
-      return true
+      await api.delete("/shopping-list")
     } catch (error) {
       console.error("Errore durante l'eliminazione di tutti gli elementi:", error)
-      return false
+      throw error
     }
   },
 }
 
 // API per la dispensa
 export const pantryApi = {
-  getAll: (): PantryItem[] => {
+  getAll: async (category?: string, expired?: boolean, expiringSoon?: boolean): Promise<PantryItem[]> => {
     try {
-      const items = localStorage.getItem("pantry")
-      return items ? JSON.parse(items) : []
+      const params: any = {}
+      if (category) params.category = category
+      if (expired !== undefined) params.expired = expired.toString()
+      if (expiringSoon !== undefined) params.expiringSoon = expiringSoon.toString()
+
+      const response = await api.get("/pantry", { params })
+      return response.data.map((item: any) => ({
+        ...item,
+        id: item._id, // Aggiungi id per compatibilità
+      }))
     } catch (error) {
       console.error("Errore durante il recupero della dispensa:", error)
-      return []
+      throw error
     }
   },
 
-  add: (item: Omit<PantryItem, "id">): PantryItem => {
+  add: async (item: Omit<PantryItem, "_id" | "id">): Promise<PantryItem> => {
     try {
-      const items = pantryApi.getAll()
-
-      // Genera un nuovo ID
-      const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1
-
-      // Crea il nuovo elemento
-      const newItem: PantryItem = {
-        id: newId,
-        name: item.name,
-        quantity: item.quantity,
-        expirationDate: item.expirationDate,
-        category: item.category,
+      const response = await api.post("/pantry", item)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
       }
-
-      // Aggiungi l'elemento all'array e salva
-      items.push(newItem)
-      localStorage.setItem("pantry", JSON.stringify(items))
-
-      return newItem
     } catch (error) {
       console.error("Errore durante l'aggiunta dell'elemento alla dispensa:", error)
       throw error
     }
   },
 
-  update: (id: number, updates: Partial<PantryItem>): PantryItem | null => {
+  update: async (id: string, item: Partial<PantryItem>): Promise<PantryItem> => {
     try {
-      const items = pantryApi.getAll()
-      const index = items.findIndex((item) => item.id === id)
-
-      if (index === -1) return null
-
-      // Aggiorna l'elemento
-      items[index] = { ...items[index], ...updates }
-      localStorage.setItem("pantry", JSON.stringify(items))
-
-      return items[index]
+      const response = await api.put(`/pantry/${id}`, item)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
+      }
     } catch (error) {
       console.error("Errore durante l'aggiornamento dell'elemento della dispensa:", error)
-      return null
+      throw error
     }
   },
 
-  delete: (id: number): boolean => {
+  delete: async (id: string): Promise<void> => {
     try {
-      const items = pantryApi.getAll()
-      const filteredItems = items.filter((item) => item.id !== id)
-
-      if (filteredItems.length === items.length) return false
-
-      localStorage.setItem("pantry", JSON.stringify(filteredItems))
-      return true
+      await api.delete(`/pantry/${id}`)
     } catch (error) {
       console.error("Errore durante l'eliminazione dell'elemento della dispensa:", error)
-      return false
+      throw error
     }
   },
 }
 
 // API per le note
 export const noteApi = {
-  getAll: (): Note[] => {
+  getAll: async (category?: string, query?: string): Promise<Note[]> => {
     try {
-      const notes = localStorage.getItem("notes")
-      return notes ? JSON.parse(notes) : []
+      const params: any = {}
+      if (category) params.category = category
+      if (query) params.query = query
+
+      const response = await api.get("/notes", { params })
+      return response.data.map((note: any) => ({
+        ...note,
+        id: note._id, // Aggiungi id per compatibilità
+      }))
     } catch (error) {
       console.error("Errore durante il recupero delle note:", error)
-      return []
+      throw error
     }
   },
 
-  getById: (id: number): Note | null => {
+  add: async (note: Omit<Note, "_id" | "id" | "createdAt">): Promise<Note> => {
     try {
-      const notes = noteApi.getAll()
-      return notes.find((note) => note.id === id) || null
-    } catch (error) {
-      console.error("Errore durante il recupero della nota:", error)
-      return null
-    }
-  },
-
-  add: (note: Omit<Note, "id">): Note => {
-    try {
-      const notes = noteApi.getAll()
-
-      // Genera un nuovo ID
-      const newId = notes.length > 0 ? Math.max(...notes.map((note) => note.id)) + 1 : 1
-
-      // Crea la nuova nota
-      const newNote: Note = {
-        id: newId,
-        title: note.title,
-        content: note.content,
-        date: note.date,
-        category: note.category,
+      const response = await api.post("/notes", note)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
       }
-
-      // Aggiungi la nota all'array e salva
-      notes.push(newNote)
-      localStorage.setItem("notes", JSON.stringify(notes))
-
-      return newNote
     } catch (error) {
       console.error("Errore durante l'aggiunta della nota:", error)
       throw error
     }
   },
 
-  update: (id: number, updates: Partial<Note>): Note | null => {
+  update: async (id: string, note: Partial<Note>): Promise<Note> => {
     try {
-      const notes = noteApi.getAll()
-      const index = notes.findIndex((note) => note.id === id)
-
-      if (index === -1) return null
-
-      // Aggiorna la nota
-      notes[index] = { ...notes[index], ...updates }
-      localStorage.setItem("notes", JSON.stringify(notes))
-
-      return notes[index]
+      const response = await api.put(`/notes/${id}`, note)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
+      }
     } catch (error) {
       console.error("Errore durante l'aggiornamento della nota:", error)
-      return null
+      throw error
     }
   },
 
-  delete: (id: number): boolean => {
+  delete: async (id: string): Promise<void> => {
     try {
-      const notes = noteApi.getAll()
-      const filteredNotes = notes.filter((note) => note.id !== id)
-
-      if (filteredNotes.length === notes.length) return false
-
-      localStorage.setItem("notes", JSON.stringify(filteredNotes))
-      return true
+      await api.delete(`/notes/${id}`)
     } catch (error) {
       console.error("Errore durante l'eliminazione della nota:", error)
-      return false
+      throw error
     }
   },
 }
 
 // API per i piani dietetici
 export const dietApi = {
-  getAll: (): DietPlan[] => {
+  getAll: async (): Promise<DietPlan[]> => {
     try {
-      const plans = localStorage.getItem("dietPlans")
-      return plans ? JSON.parse(plans) : []
+      const response = await api.get("/diet-plans")
+      return response.data.map((plan: any) => ({
+        ...plan,
+        id: plan._id, // Aggiungi id per compatibilità
+      }))
     } catch (error) {
       console.error("Errore durante il recupero dei piani dietetici:", error)
-      return []
+      throw error
     }
   },
 
-  getById: (id: number): DietPlan | null => {
+  getById: async (id: string): Promise<DietPlan> => {
     try {
-      const plans = dietApi.getAll()
-      return plans.find((plan) => plan.id === id) || null
+      const response = await api.get(`/diet-plans/${id}`)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
+      }
     } catch (error) {
       console.error("Errore durante il recupero del piano dietetico:", error)
-      return null
+      throw error
     }
   },
 
-  add: (plan: Omit<DietPlan, "id">): DietPlan => {
+  add: async (plan: Omit<DietPlan, "_id" | "id" | "createdAt">): Promise<DietPlan> => {
     try {
-      const plans = dietApi.getAll()
-
-      // Genera un nuovo ID
-      const newId = plans.length > 0 ? Math.max(...plans.map((plan) => plan.id)) + 1 : 1
-
-      // Crea il nuovo piano
-      const newPlan: DietPlan = {
-        id: newId,
-        name: plan.name,
-        date: plan.date,
-        userData: plan.userData,
-        results: plan.results,
-        mealPlan: plan.mealPlan,
-        tips: plan.tips,
+      const response = await api.post("/diet-plans", plan)
+      return {
+        ...response.data,
+        id: response.data._id, // Aggiungi id per compatibilità
       }
-
-      // Aggiungi il piano all'array e salva
-      plans.push(newPlan)
-      localStorage.setItem("dietPlans", JSON.stringify(plans))
-
-      return newPlan
     } catch (error) {
       console.error("Errore durante l'aggiunta del piano dietetico:", error)
       throw error
     }
   },
 
-  update: (id: number, updates: Partial<DietPlan>): DietPlan | null => {
+  delete: async (id: string): Promise<void> => {
     try {
-      const plans = dietApi.getAll()
-      const index = plans.findIndex((plan) => plan.id === id)
-
-      if (index === -1) return null
-
-      // Aggiorna il piano
-      plans[index] = { ...plans[index], ...updates }
-      localStorage.setItem("dietPlans", JSON.stringify(plans))
-
-      return plans[index]
-    } catch (error) {
-      console.error("Errore durante l'aggiornamento del piano dietetico:", error)
-      return null
-    }
-  },
-
-  delete: (id: number): boolean => {
-    try {
-      const plans = dietApi.getAll()
-      const filteredPlans = plans.filter((plan) => plan.id !== id)
-
-      if (filteredPlans.length === plans.length) return false
-
-      localStorage.setItem("dietPlans", JSON.stringify(filteredPlans))
-      return true
+      await api.delete(`/diet-plans/${id}`)
     } catch (error) {
       console.error("Errore durante l'eliminazione del piano dietetico:", error)
-      return false
+      throw error
     }
   },
 }
+
+export default api
 

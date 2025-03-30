@@ -16,18 +16,11 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-
-interface User {
-  id: number
-  name: string
-  email: string
-  password?: string
-  isLoggedIn: boolean
-}
+import { authApi, userApi } from "@/lib/api"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [currentPassword, setCurrentPassword] = useState("")
@@ -38,82 +31,76 @@ export default function ProfilePage() {
   const [expiryAlerts, setExpiryAlerts] = useState(true)
   const [recipeSuggestions, setRecipeSuggestions] = useState(true)
 
-  // Carica i dati dell'utente dal localStorage
+  // Carica i dati dell'utente
   useEffect(() => {
-    const savedUser = localStorage.getItem("currentUser")
-    if (savedUser) {
+    const fetchUserProfile = async () => {
       try {
-        const userData = JSON.parse(savedUser)
+        // Verifica se l'utente è autenticato
+        if (!authApi.isAuthenticated()) {
+          router.push("/login")
+          return
+        }
+
+        // Carica il profilo utente dal backend
+        const userData = await userApi.getProfile()
         setUser(userData)
         setName(userData.name)
         setEmail(userData.email)
+
+        // Imposta le preferenze se disponibili
+        if (userData.preferences) {
+          setNotifications(userData.preferences.notifications)
+          setExpiryAlerts(userData.preferences.expiryAlerts)
+          setRecipeSuggestions(userData.preferences.recipeSuggestions)
+        }
       } catch (error) {
-        console.error("Errore nel parsing dei dati utente:", error)
+        console.error("Errore durante il recupero del profilo:", error)
+        // Se c'è un errore di autenticazione, reindirizza al login
+        router.push("/login")
       }
-    } else {
-      // Reindirizza alla pagina di login se l'utente non è autenticato
-      router.push("/login")
     }
+
+    fetchUserProfile()
   }, [router])
 
-  const handleProfileUpdate = (e: React.FormEvent) => {
+  const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      if (!user) return
-
-      // Recupera tutti gli utenti
-      const savedUsers = localStorage.getItem("users")
-      if (!savedUsers) {
-        toast({
-          title: "Errore",
-          description: "Impossibile aggiornare il profilo",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
+      // Aggiorna le preferenze
+      const preferences = {
+        notifications,
+        expiryAlerts,
+        recipeSuggestions,
       }
 
-      const users = JSON.parse(savedUsers)
-      const userIndex = users.findIndex((u: User) => u.id === user.id)
+      // Invia l'aggiornamento al backend
+      const updatedUser = await userApi.updateProfile(name, email, preferences)
 
-      if (userIndex === -1) {
-        toast({
-          title: "Errore",
-          description: "Utente non trovato",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
-
-      // Aggiorna i dati dell'utente
-      users[userIndex].name = name
-      users[userIndex].email = email
-
-      // Salva gli utenti aggiornati
-      localStorage.setItem("users", JSON.stringify(users))
-
-      // Aggiorna l'utente corrente
-      const updatedUser = {
-        ...user,
-        name,
-        email,
-      }
-
+      // Aggiorna lo stato locale
       setUser(updatedUser)
-      localStorage.setItem("currentUser", JSON.stringify(updatedUser))
+
+      // Aggiorna i dati utente nel localStorage
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          ...authApi.getCurrentUser(),
+          name,
+          email,
+          preferences,
+        }),
+      )
 
       toast({
         title: "Profilo aggiornato",
         description: "Le tue informazioni sono state aggiornate con successo",
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Errore durante l'aggiornamento del profilo:", error)
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante l'aggiornamento del profilo",
+        description: error.response?.data?.error || "Si è verificato un errore durante l'aggiornamento del profilo",
         variant: "destructive",
       })
     } finally {
@@ -121,13 +108,11 @@ export default function ProfilePage() {
     }
   }
 
-  const handlePasswordUpdate = (e: React.FormEvent) => {
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      if (!user) return
-
       // Validazione
       if (!currentPassword || !newPassword || !confirmPassword) {
         toast({
@@ -149,47 +134,8 @@ export default function ProfilePage() {
         return
       }
 
-      // Recupera tutti gli utenti
-      const savedUsers = localStorage.getItem("users")
-      if (!savedUsers) {
-        toast({
-          title: "Errore",
-          description: "Impossibile aggiornare la password",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
-
-      const users = JSON.parse(savedUsers)
-      const userIndex = users.findIndex((u: User) => u.id === user.id)
-
-      if (userIndex === -1) {
-        toast({
-          title: "Errore",
-          description: "Utente non trovato",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
-
-      // Verifica la password corrente
-      if (users[userIndex].password !== currentPassword) {
-        toast({
-          title: "Errore",
-          description: "Password corrente non valida",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
-
-      // Aggiorna la password
-      users[userIndex].password = newPassword
-
-      // Salva gli utenti aggiornati
-      localStorage.setItem("users", JSON.stringify(users))
+      // Invia l'aggiornamento al backend
+      await userApi.updatePassword(currentPassword, newPassword)
 
       toast({
         title: "Password aggiornata",
@@ -200,11 +146,11 @@ export default function ProfilePage() {
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
-    } catch (error) {
+    } catch (error: any) {
       console.error("Errore durante l'aggiornamento della password:", error)
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante l'aggiornamento della password",
+        description: error.response?.data?.error || "Si è verificato un errore durante l'aggiornamento della password",
         variant: "destructive",
       })
     } finally {
@@ -213,8 +159,7 @@ export default function ProfilePage() {
   }
 
   const handleLogout = () => {
-    // Rimuovi i dati dell'utente dalla sessione
-    localStorage.removeItem("currentUser")
+    authApi.logout()
 
     toast({
       title: "Logout effettuato",
@@ -223,25 +168,6 @@ export default function ProfilePage() {
 
     // Reindirizza alla home
     router.push("/")
-  }
-
-  const handlePreferenceChange = (preference: string, value: boolean) => {
-    switch (preference) {
-      case "notifications":
-        setNotifications(value)
-        break
-      case "expiryAlerts":
-        setExpiryAlerts(value)
-        break
-      case "recipeSuggestions":
-        setRecipeSuggestions(value)
-        break
-    }
-
-    toast({
-      title: "Preferenze aggiornate",
-      description: "Le tue preferenze sono state aggiornate con successo",
-    })
   }
 
   if (!user) {
@@ -332,11 +258,7 @@ export default function ProfilePage() {
                                 Ricevi email per promemoria e aggiornamenti
                               </div>
                             </div>
-                            <Switch
-                              id="notifications"
-                              checked={notifications}
-                              onCheckedChange={(checked) => handlePreferenceChange("notifications", checked)}
-                            />
+                            <Switch id="notifications" checked={notifications} onCheckedChange={setNotifications} />
                           </div>
 
                           <div className="flex items-center justify-between">
@@ -346,11 +268,7 @@ export default function ProfilePage() {
                                 Ricevi notifiche per prodotti in scadenza
                               </div>
                             </div>
-                            <Switch
-                              id="expiry-alerts"
-                              checked={expiryAlerts}
-                              onCheckedChange={(checked) => handlePreferenceChange("expiryAlerts", checked)}
-                            />
+                            <Switch id="expiry-alerts" checked={expiryAlerts} onCheckedChange={setExpiryAlerts} />
                           </div>
 
                           <div className="flex items-center justify-between">
@@ -363,7 +281,7 @@ export default function ProfilePage() {
                             <Switch
                               id="recipe-suggestions"
                               checked={recipeSuggestions}
-                              onCheckedChange={(checked) => handlePreferenceChange("recipeSuggestions", checked)}
+                              onCheckedChange={setRecipeSuggestions}
                             />
                           </div>
                         </div>

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/use-toast"
+import { authApi } from "@/lib/api"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -40,48 +41,27 @@ export default function LoginPage() {
         return
       }
 
-      // Recupera gli utenti dal localStorage
-      const savedUsers = localStorage.getItem("users")
-      const users = savedUsers ? JSON.parse(savedUsers) : []
+      // Effettua il login
+      const response = await authApi.login(loginEmail, loginPassword)
 
-      // Cerca l'utente
-      const user = users.find((u: any) => u.email === loginEmail && u.password === loginPassword)
-
-      if (!user) {
-        toast({
-          title: "Errore di accesso",
-          description: "Email o password non validi",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
-
-      // Salva i dati dell'utente nella sessione
-      localStorage.setItem(
-        "currentUser",
-        JSON.stringify({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          isLoggedIn: true,
-        }),
-      )
+      // Salva il token e i dati utente
+      localStorage.setItem("token", response.token)
+      localStorage.setItem("user", JSON.stringify(response.user))
 
       toast({
         title: "Accesso effettuato",
-        description: `Benvenuto, ${user.name}!`,
+        description: `Benvenuto, ${response.user.name}!`,
       })
 
       // Reindirizza alla home
       setTimeout(() => {
         router.push("/")
       }, 1000)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Errore durante il login:", error)
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante l'accesso",
+        description: error.response?.data?.error || "Si è verificato un errore durante l'accesso",
         variant: "destructive",
       })
     } finally {
@@ -115,44 +95,12 @@ export default function LoginPage() {
         return
       }
 
-      // Recupera gli utenti esistenti
-      const savedUsers = localStorage.getItem("users")
-      const users = savedUsers ? JSON.parse(savedUsers) : []
+      // Effettua la registrazione
+      const response = await authApi.register(registerName, registerEmail, registerPassword)
 
-      // Verifica se l'email è già registrata
-      if (users.some((u: any) => u.email === registerEmail)) {
-        toast({
-          title: "Errore",
-          description: "Email già registrata",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
-
-      // Crea un nuovo utente
-      const newUser = {
-        id: users.length > 0 ? Math.max(...users.map((u: any) => u.id)) + 1 : 1,
-        name: registerName,
-        email: registerEmail,
-        password: registerPassword,
-        createdAt: new Date().toISOString(),
-      }
-
-      // Aggiungi l'utente e salva
-      users.push(newUser)
-      localStorage.setItem("users", JSON.stringify(users))
-
-      // Salva i dati dell'utente nella sessione
-      localStorage.setItem(
-        "currentUser",
-        JSON.stringify({
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          isLoggedIn: true,
-        }),
-      )
+      // Salva il token e i dati utente
+      localStorage.setItem("token", response.token)
+      localStorage.setItem("user", JSON.stringify(response.user))
 
       toast({
         title: "Registrazione completata",
@@ -163,11 +111,11 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push("/")
       }, 1000)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Errore durante la registrazione:", error)
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante la registrazione",
+        description: error.response?.data?.error || "Si è verificato un errore durante la registrazione",
         variant: "destructive",
       })
     } finally {
