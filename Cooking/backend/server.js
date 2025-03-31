@@ -180,6 +180,7 @@ app.post(
       })
 
       await user.save()
+      console.log("Utente salvato:", user)
 
       // Genera token JWT
       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" })

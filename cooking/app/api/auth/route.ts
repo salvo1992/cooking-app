@@ -1,28 +1,39 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server";
 
-// Simulazione di un database di utenti
-const users = [
+// Simulazione di un database in memoria (i dati si resettano se riavvii il server).
+let users = [
   {
     id: 1,
     name: "Mario Rossi",
     email: "mario.rossi@esempio.com",
-    password: "password123", // In un'app reale, questa sarebbe hashata
+    password: "password123", // Nella realtà andrebbe hashata (es. con bcrypt).
   },
-]
+];
 
 export async function POST(request: Request) {
   try {
-    const { action, email, password, name } = await request.json()
+    // Leggiamo i campi inviati dal client
+    const { action, name, email, password } = await request.json();
 
+    // 1. Controllo che ci sia un'azione (login o register)
+    if (!action) {
+      return NextResponse.json({ error: "Manca l'azione (login o register)" }, { status: 400 });
+    }
+
+    // 2. Login
     if (action === "login") {
-      // Verifica delle credenziali
-      const user = users.find((u) => u.email === email && u.password === password)
-
-      if (!user) {
-        return NextResponse.json({ error: "Credenziali non valide" }, { status: 401 })
+      // Controlliamo che email e password siano presenti
+      if (!email || !password) {
+        return NextResponse.json({ error: "Email e password sono obbligatorie" }, { status: 400 });
       }
 
-      // In un'app reale, qui genereremmo un token JWT
+      // Cerchiamo l'utente
+      const user = users.find((u) => u.email === email && u.password === password);
+      if (!user) {
+        return NextResponse.json({ error: "Credenziali non valide" }, { status: 401 });
+      }
+
+      // In un caso reale, qui genereremmo e restituiremmo un token JWT
       return NextResponse.json({
         success: true,
         user: {
@@ -30,24 +41,30 @@ export async function POST(request: Request) {
           name: user.name,
           email: user.email,
         },
-      })
-    } else if (action === "register") {
-      // Verifica se l'utente esiste già
-      const existingUser = users.find((u) => u.email === email)
+      });
+    }
 
-      if (existingUser) {
-        return NextResponse.json({ error: "Email già registrata" }, { status: 400 })
+    // 3. Register
+    else if (action === "register") {
+      // Verifichiamo che i campi obbligatori siano presenti
+      if (!name || !email || !password) {
+        return NextResponse.json({ error: "Nome, email e password sono obbligatori" }, { status: 400 });
       }
 
-      // Crea un nuovo utente
+      // Controlliamo se l'utente esiste già
+      const existingUser = users.find((u) => u.email === email);
+      if (existingUser) {
+        return NextResponse.json({ error: "Email già registrata" }, { status: 400 });
+      }
+
+      // Creiamo il nuovo utente
       const newUser = {
         id: users.length + 1,
         name,
         email,
-        password, // In un'app reale, questa sarebbe hashata
-      }
-
-      users.push(newUser)
+        password, // In produzione andrebbe hashata
+      };
+      users.push(newUser);
 
       return NextResponse.json({
         success: true,
@@ -56,13 +73,15 @@ export async function POST(request: Request) {
           name: newUser.name,
           email: newUser.email,
         },
-      })
+      });
     }
 
-    return NextResponse.json({ error: "Azione non valida" }, { status: 400 })
+    // Se action non è né "login" né "register", rispondiamo con errore
+    return NextResponse.json({ error: "Azione non valida" }, { status: 400 });
   } catch (error) {
-    console.error("Errore durante l'autenticazione:", error)
-    return NextResponse.json({ error: "Errore del server" }, { status: 500 })
+    console.error("Errore durante l'autenticazione:", error);
+    return NextResponse.json({ error: "Errore del server" }, { status: 500 });
   }
 }
+
 

@@ -146,9 +146,10 @@ export interface DietPlan {
 
 // API per l'autenticazione
 export const authApi = {
-  register: async (name: string, email: string, password: string): Promise<AuthResponse> => {
+  register: async  (name: string, email: string, password: string): Promise<AuthResponse> => {
+    console.log("Sto inviando:", { name, email, password }); // aggiungi questa linea
     try {
-      const response = await api.post("/auth/register", { name, email, password })
+      const response = await api.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, { name, email, password })
       return response.data
     } catch (error) {
       console.error("Errore durante la registrazione:", error)
@@ -158,7 +159,7 @@ export const authApi = {
 
   login: async (email: string, password: string): Promise<AuthResponse> => {
     try {
-      const response = await api.post("/auth/login", { email, password })
+      const response = await api.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, { email, password })
       return response.data
     } catch (error) {
       console.error("Errore durante il login:", error)
@@ -190,7 +191,7 @@ export const authApi = {
 export const userApi = {
   getProfile: async (): Promise<User> => {
     try {
-      const response = await api.get("/user/profile")
+      const response = await api.get(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`)
       return response.data
     } catch (error) {
       console.error("Errore durante il recupero del profilo:", error)
@@ -200,7 +201,7 @@ export const userApi = {
 
   updateProfile: async (name: string, email: string, preferences?: any): Promise<User> => {
     try {
-      const response = await api.put("/user/profile", { name, email, preferences })
+      const response = await api.put(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, { name, email, preferences })
       return response.data
     } catch (error) {
       console.error("Errore durante l'aggiornamento del profilo:", error)
@@ -210,7 +211,7 @@ export const userApi = {
 
   updatePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
     try {
-      await api.put("/user/password", { currentPassword, newPassword })
+      await api.put(`${process.env.NEXT_PUBLIC_API_URL}/api/user/password`, { currentPassword, newPassword })
     } catch (error) {
       console.error("Errore durante l'aggiornamento della password:", error)
       throw error
@@ -227,10 +228,10 @@ export const recipeApi = {
       if (favorite !== undefined) params.favorite = favorite.toString()
       if (personal !== undefined) params.personal = personal.toString()
 
-      const response = await api.get("/recipes", { params })
+      const response = await api.get(`${process.env.NEXT_PUBLIC_API_URL}/api/recipes`, { params })
       return response.data.map((recipe: any) => ({
         ...recipe,
-        id: recipe._id, // Aggiungi id per compatibilità
+        id: recipe._id,
       }))
     } catch (error) {
       console.error("Errore durante il recupero delle ricette:", error)
@@ -240,10 +241,10 @@ export const recipeApi = {
 
   getById: async (id: string): Promise<Recipe> => {
     try {
-      const response = await api.get(`/recipes/${id}`)
+      const response = await api.get(`${process.env.NEXT_PUBLIC_API_URL}/api/recipes/${id}`)
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
+        id: response.data._id,
       }
     } catch (error) {
       console.error("Errore durante il recupero della ricetta:", error)
@@ -253,10 +254,10 @@ export const recipeApi = {
 
   add: async (recipe: Omit<Recipe, "_id" | "id">): Promise<Recipe> => {
     try {
-      const response = await api.post("/recipes", recipe)
+      const response = await api.post(`${process.env.NEXT_PUBLIC_API_URL}/api/recipes`, recipe)
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
+        id: response.data._id,
       }
     } catch (error) {
       console.error("Errore durante l'aggiunta della ricetta:", error)
@@ -266,10 +267,10 @@ export const recipeApi = {
 
   update: async (id: string, recipe: Partial<Recipe>): Promise<Recipe> => {
     try {
-      const response = await api.put(`/recipes/${id}`, recipe)
+      const response = await api.put(`${process.env.NEXT_PUBLIC_API_URL}/api/recipes/${id}`, recipe)
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
+        id: response.data._id,
       }
     } catch (error) {
       console.error("Errore durante l'aggiornamento della ricetta:", error)
@@ -279,10 +280,10 @@ export const recipeApi = {
 
   toggleFavorite: async (id: string): Promise<Recipe> => {
     try {
-      const response = await api.patch(`/recipes/${id}/favorite`)
+      const response = await api.patch(`${process.env.NEXT_PUBLIC_API_URL}/api/recipes/${id}/favorite`)
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
+        id: response.data._id,
       }
     } catch (error) {
       console.error("Errore durante l'aggiornamento dei preferiti:", error)
@@ -292,7 +293,7 @@ export const recipeApi = {
 
   delete: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/recipes/${id}`)
+      await api.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/recipes/${id}`)
     } catch (error) {
       console.error("Errore durante l'eliminazione della ricetta:", error)
       throw error
@@ -308,10 +309,10 @@ export const shoppingListApi = {
       if (fromRecipe !== undefined) params.fromRecipe = fromRecipe.toString()
       if (checked !== undefined) params.checked = checked.toString()
 
-      const response = await api.get("/shopping-list", { params })
+      const response = await api.get(`${process.env.NEXT_PUBLIC_API_URL}/api/shopping-list`, { params })
       return response.data.map((item: any) => ({
         ...item,
-        id: item._id, // Aggiungi id per compatibilità
+        id: item._id,
       }))
     } catch (error) {
       console.error("Errore durante il recupero della lista della spesa:", error)
@@ -321,10 +322,10 @@ export const shoppingListApi = {
 
   add: async (item: Omit<ShoppingItem, "_id" | "id">): Promise<ShoppingItem> => {
     try {
-      const response = await api.post("/shopping-list", item)
+      const response = await api.post(`${process.env.NEXT_PUBLIC_API_URL}/api/shopping-list`, item)
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
+        id: response.data._id,
       }
     } catch (error) {
       console.error("Errore durante l'aggiunta dell'elemento alla lista della spesa:", error)
@@ -334,10 +335,10 @@ export const shoppingListApi = {
 
   addMany: async (items: Ingredient[], fromRecipe?: string): Promise<ShoppingItem[]> => {
     try {
-      const response = await api.post("/shopping-list/batch", { items, fromRecipe })
+      const response = await api.post(`${process.env.NEXT_PUBLIC_API_URL}/api/shopping-list/batch`, { items, fromRecipe })
       return response.data.map((item: any) => ({
         ...item,
-        id: item._id, // Aggiungi id per compatibilità
+        id: item._id,
       }))
     } catch (error) {
       console.error("Errore durante l'aggiunta degli elementi alla lista della spesa:", error)
@@ -347,10 +348,10 @@ export const shoppingListApi = {
 
   update: async (id: string, checked: boolean): Promise<ShoppingItem> => {
     try {
-      const response = await api.patch(`/shopping-list/${id}`, { checked })
+      const response = await api.patch(`${process.env.NEXT_PUBLIC_API_URL}/api/shopping-list/${id}`, { checked })
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
+        id: response.data._id,
       }
     } catch (error) {
       console.error("Errore durante l'aggiornamento dell'elemento della lista della spesa:", error)
@@ -360,7 +361,7 @@ export const shoppingListApi = {
 
   delete: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/shopping-list/${id}`)
+      await api.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/shopping-list/${id}`)
     } catch (error) {
       console.error("Errore durante l'eliminazione dell'elemento della lista della spesa:", error)
       throw error
@@ -369,7 +370,7 @@ export const shoppingListApi = {
 
   deleteChecked: async (): Promise<void> => {
     try {
-      await api.delete("/shopping-list", { params: { checked: "true" } })
+      await api.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/shopping-list`, { params: { checked: "true" } })
     } catch (error) {
       console.error("Errore durante l'eliminazione degli elementi selezionati:", error)
       throw error
@@ -378,7 +379,7 @@ export const shoppingListApi = {
 
   deleteAll: async (): Promise<void> => {
     try {
-      await api.delete("/shopping-list")
+      await api.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/shopping-list`)
     } catch (error) {
       console.error("Errore durante l'eliminazione di tutti gli elementi:", error)
       throw error
@@ -390,163 +391,166 @@ export const shoppingListApi = {
 export const pantryApi = {
   getAll: async (category?: string, expired?: boolean, expiringSoon?: boolean): Promise<PantryItem[]> => {
     try {
-      const params: any = {}
-      if (category) params.category = category
-      if (expired !== undefined) params.expired = expired.toString()
-      if (expiringSoon !== undefined) params.expiringSoon = expiringSoon.toString()
+      const params: any = {};
+      if (category) params.category = category;
+      if (expired !== undefined) params.expired = expired.toString();
+      if (expiringSoon !== undefined) params.expiringSoon = expiringSoon.toString();
 
-      const response = await api.get("/pantry", { params })
+      const response = await api.get(`${process.env.NEXT_PUBLIC_API_URL}/api/pantry`, { params });
       return response.data.map((item: any) => ({
         ...item,
-        id: item._id, // Aggiungi id per compatibilità
-      }))
+        id: item._id,
+      }));
     } catch (error) {
-      console.error("Errore durante il recupero della dispensa:", error)
-      throw error
+      console.error("Errore durante il recupero della dispensa:", error);
+      throw error;
     }
   },
 
   add: async (item: Omit<PantryItem, "_id" | "id">): Promise<PantryItem> => {
     try {
-      const response = await api.post("/pantry", item)
+      const response = await api.post(`${process.env.NEXT_PUBLIC_API_URL}/api/pantry`, item);
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
-      }
+        id: response.data._id,
+      };
     } catch (error) {
-      console.error("Errore durante l'aggiunta dell'elemento alla dispensa:", error)
-      throw error
+      console.error("Errore durante l'aggiunta dell'elemento alla dispensa:", error);
+      throw error;
     }
   },
 
   update: async (id: string, item: Partial<PantryItem>): Promise<PantryItem> => {
     try {
-      const response = await api.put(`/pantry/${id}`, item)
+      const response = await api.put(`${process.env.NEXT_PUBLIC_API_URL}/api/pantry/${id}`, item);
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
-      }
+        id: response.data._id,
+      };
     } catch (error) {
-      console.error("Errore durante l'aggiornamento dell'elemento della dispensa:", error)
-      throw error
+      console.error("Errore durante l'aggiornamento dell'elemento della dispensa:", error);
+      throw error;
     }
   },
 
   delete: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/pantry/${id}`)
+      await api.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/pantry/${id}`);
     } catch (error) {
-      console.error("Errore durante l'eliminazione dell'elemento della dispensa:", error)
-      throw error
+      console.error("Errore durante l'eliminazione dell'elemento della dispensa:", error);
+      throw error;
     }
   },
-}
+};
+
 
 // API per le note
 export const noteApi = {
   getAll: async (category?: string, query?: string): Promise<Note[]> => {
     try {
-      const params: any = {}
-      if (category) params.category = category
-      if (query) params.query = query
+      const params: any = {};
+      if (category) params.category = category;
+      if (query) params.query = query;
 
-      const response = await api.get("/notes", { params })
+      const response = await api.get(`${process.env.NEXT_PUBLIC_API_URL}/api/notes`, { params });
       return response.data.map((note: any) => ({
         ...note,
-        id: note._id, // Aggiungi id per compatibilità
-      }))
+        id: note._id, // per compatibilità con frontend
+      }));
     } catch (error) {
-      console.error("Errore durante il recupero delle note:", error)
-      throw error
+      console.error("Errore durante il recupero delle note:", error);
+      throw error;
     }
   },
 
   add: async (note: Omit<Note, "_id" | "id" | "createdAt">): Promise<Note> => {
     try {
-      const response = await api.post("/notes", note)
+      const response = await api.post(`${process.env.NEXT_PUBLIC_API_URL}/api/notes`, note);
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
-      }
+        id: response.data._id,
+      };
     } catch (error) {
-      console.error("Errore durante l'aggiunta della nota:", error)
-      throw error
+      console.error("Errore durante l'aggiunta della nota:", error);
+      throw error;
     }
   },
 
   update: async (id: string, note: Partial<Note>): Promise<Note> => {
     try {
-      const response = await api.put(`/notes/${id}`, note)
+      const response = await api.put(`${process.env.NEXT_PUBLIC_API_URL}/api/notes/${id}`, note);
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
-      }
+        id: response.data._id,
+      };
     } catch (error) {
-      console.error("Errore durante l'aggiornamento della nota:", error)
-      throw error
+      console.error("Errore durante l'aggiornamento della nota:", error);
+      throw error;
     }
   },
 
   delete: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/notes/${id}`)
+      await api.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/notes/${id}`);
     } catch (error) {
-      console.error("Errore durante l'eliminazione della nota:", error)
-      throw error
+      console.error("Errore durante l'eliminazione della nota:", error);
+      throw error;
     }
   },
-}
+};
+
 
 // API per i piani dietetici
 export const dietApi = {
   getAll: async (): Promise<DietPlan[]> => {
     try {
-      const response = await api.get("/diet-plans")
+      const response = await api.get(`${process.env.NEXT_PUBLIC_API_URL}/api/diet-plans`);
       return response.data.map((plan: any) => ({
         ...plan,
-        id: plan._id, // Aggiungi id per compatibilità
-      }))
+        id: plan._id, // Mantieni compatibilità con id
+      }));
     } catch (error) {
-      console.error("Errore durante il recupero dei piani dietetici:", error)
-      throw error
+      console.error("Errore durante il recupero dei piani dietetici:", error);
+      throw error;
     }
   },
 
   getById: async (id: string): Promise<DietPlan> => {
     try {
-      const response = await api.get(`/diet-plans/${id}`)
+      const response = await api.get(`${process.env.NEXT_PUBLIC_API_URL}/api/diet-plans/${id}`);
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
-      }
+        id: response.data._id,
+      };
     } catch (error) {
-      console.error("Errore durante il recupero del piano dietetico:", error)
-      throw error
+      console.error("Errore durante il recupero del piano dietetico:", error);
+      throw error;
     }
   },
 
   add: async (plan: Omit<DietPlan, "_id" | "id" | "createdAt">): Promise<DietPlan> => {
     try {
-      const response = await api.post("/diet-plans", plan)
+      const response = await api.post(`${process.env.NEXT_PUBLIC_API_URL}/api/diet-plans`, plan);
       return {
         ...response.data,
-        id: response.data._id, // Aggiungi id per compatibilità
-      }
+        id: response.data._id,
+      };
     } catch (error) {
-      console.error("Errore durante l'aggiunta del piano dietetico:", error)
-      throw error
+      console.error("Errore durante l'aggiunta del piano dietetico:", error);
+      throw error;
     }
   },
 
   delete: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/diet-plans/${id}`)
+      await api.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/diet-plans/${id}`);
     } catch (error) {
-      console.error("Errore durante l'eliminazione del piano dietetico:", error)
-      throw error
+      console.error("Errore durante l'eliminazione del piano dietetico:", error);
+      throw error;
     }
   },
-}
+};
+
 
 export default api
 
