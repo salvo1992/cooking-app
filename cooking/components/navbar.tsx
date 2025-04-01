@@ -1,13 +1,12 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { ChefHat, ShoppingCart, Package, Utensils, Notebook, User, Menu, LogOut } from "lucide-react"
-import { useState, useEffect } from "react"
-
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { cn } from "@/lib/utils"
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { ChefHat, ShoppingCart, Package, Utensils, Notebook, User, Menu, LogOut } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,10 +14,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { toast } from "@/components/ui/use-toast"
-import { authApi } from "@/lib/api"
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "@/components/ui/use-toast";
+import { authApi } from "@/lib/api";
+
+interface NavbarProps {
+  isChatbotOpen: boolean;
+  setIsChatbotOpen: (isOpen: boolean) => void;
+}
 
 const routes = [
   {
@@ -46,41 +50,41 @@ const routes = [
     path: "/note",
     icon: <Notebook className="h-4 w-4 mr-2" />,
   },
-]
+];
 
-export function Navbar() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const [open, setOpen] = useState(false)
-  const [currentUser, setCurrentUser] = useState<any>(null)
+export function Navbar({ isChatbotOpen, setIsChatbotOpen }: NavbarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Carica i dati dell'utente dal localStorage
   useEffect(() => {
-    const user = authApi.getCurrentUser()
-    setCurrentUser(user)
-  }, [])
+    const user = authApi.getCurrentUser();
+    setCurrentUser(user);
+  }, []);
 
   const handleLogout = () => {
-    authApi.logout()
-    setCurrentUser(null)
+    authApi.logout();
+    setCurrentUser(null);
 
     toast({
       title: "Logout effettuato",
       description: "Hai effettuato il logout con successo",
-    })
+    });
 
     // Reindirizza alla home
-    router.push("/")
-  }
+    router.push("/");
+  };
 
   const getInitials = (name: string) => {
-    if (!name) return "U"
+    if (!name) return "U";
     return name
       .split(" ")
       .map((n) => n[0])
       .join("")
-      .toUpperCase()
-  }
+      .toUpperCase();
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -97,7 +101,7 @@ export function Navbar() {
                 href={route.path}
                 className={cn(
                   "flex items-center transition-colors hover:text-foreground/80",
-                  pathname === route.path ? "text-foreground" : "text-foreground/60",
+                  pathname === route.path ? "text-foreground" : "text-foreground/60"
                 )}
               >
                 {route.icon}
@@ -159,7 +163,7 @@ export function Navbar() {
                     href={route.path}
                     className={cn(
                       "flex items-center text-sm font-medium transition-colors hover:text-foreground/80",
-                      pathname === route.path ? "text-foreground" : "text-foreground/60",
+                      pathname === route.path ? "text-foreground" : "text-foreground/60"
                     )}
                     onClick={() => setOpen(false)}
                   >
@@ -171,7 +175,7 @@ export function Navbar() {
                   href="/profilo"
                   className={cn(
                     "flex items-center text-sm font-medium transition-colors hover:text-foreground/80",
-                    pathname === "/profilo" ? "text-foreground" : "text-foreground/60",
+                    pathname === "/profilo" ? "text-foreground" : "text-foreground/60"
                   )}
                   onClick={() => setOpen(false)}
                 >
@@ -184,8 +188,8 @@ export function Navbar() {
                     variant="ghost"
                     className="justify-start px-2"
                     onClick={() => {
-                      handleLogout()
-                      setOpen(false)
+                      handleLogout();
+                      setOpen(false);
                     }}
                   >
                     <LogOut className="h-4 w-4 mr-2" />
@@ -202,6 +206,7 @@ export function Navbar() {
         </div>
       </div>
     </header>
-  )
+  );
 }
 
+export default Navbar;
