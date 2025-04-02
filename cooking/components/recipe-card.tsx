@@ -42,7 +42,8 @@ export function RecipeCard({
   return (
     <Card className="overflow-hidden cursor-pointer transition-all hover:shadow-md" onClick={onClick}>
       <div className="relative aspect-video">
-        <Image src={image || "/placeholder.svg"} alt={title} fill className="object-cover" />
+      <Image src={image || "/placeholder.svg"} alt={title || "Immagine ricetta"} fill className="object-cover" />
+
         <Button
           variant="ghost"
           size="icon"

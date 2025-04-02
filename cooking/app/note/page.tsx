@@ -48,8 +48,9 @@ export default function NotePage() {
   // Carica le note dal localStorage all'avvio
   useEffect(() => {
     try {
-      const loadedNotes = noteApi.getAll()
+      const loadedNotes = Array.isArray(noteApi.getAll()) ? noteApi.getAll() : []
       setNotes(loadedNotes)
+      
     } catch (error) {
       console.error("Errore durante il caricamento delle note:", error)
     }
@@ -58,9 +59,10 @@ export default function NotePage() {
   // Filtra le note in base alla ricerca
   const filteredNotes = notes.filter(
     (note) =>
-      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchQuery.toLowerCase()),
+      (note.title?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (note.content?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false),
   )
+  
 
   // Categorie di note
   const categories = [

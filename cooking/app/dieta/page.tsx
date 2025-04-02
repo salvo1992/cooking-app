@@ -91,7 +91,8 @@ export default function DietPage() {
 
   // Carica i piani dietetici salvati
   useEffect(() => {
-    const loadedPlans = dietApi.getAll()
+    const loadedPlans = Array.isArray(dietApi.getAll()) ? dietApi.getAll() : []
+
     setSavedPlans(loadedPlans)
 
     // Se c'è almeno un piano, seleziona il più recente
@@ -965,21 +966,25 @@ export default function DietPage() {
                         <div className="flex justify-between">
                           <span>BMI:</span>
                           <span className="font-medium">
-                            {plan.results.bmi} ({plan.results.bmiCategory})
-                          </span>
+                          {plan.results ? `${plan.results.bmi} (${plan.results.bmiCategory})` : "N/A"}
+                         </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Calorie:</span>
-                          <span className="font-medium">{plan.results.calories} kcal</span>
+                          <span className="font-medium">
+                           {plan.results ? `${plan.results.calories} kcal` : "N/A"}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Obiettivo:</span>
                           <span className="font-medium">
-                            {plan.userData.goal === "lose"
-                              ? "Perdere peso"
-                              : plan.userData.goal === "maintain"
-                                ? "Mantenere il peso"
-                                : "Aumentare di peso"}
+                          {plan.userData
+                          ? plan.userData.goal === "lose"
+                          ? "Perdere peso"
+                          : plan.userData.goal === "maintain"
+                           ? "Mantenere il peso"
+                          : "Aumentare di peso"
+                          : "N/A"}
                           </span>
                         </div>
                       </div>

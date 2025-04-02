@@ -1,6 +1,8 @@
 "use client"
+import { use, useEffect, useState } from "react"
 
-import { useState, useEffect } from "react"
+
+
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -15,7 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { recipeApi, shoppingListApi, type Recipe } from "@/lib/api"
 import { authApi } from "@/lib/api"
 
-export default function RecipeDetailPage({ params }: { params: { slug: string } }) {
+export default function RecipeDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+
   const router = useRouter()
   const [recipe, setRecipe] = useState<Recipe | null>(null)
   const [loading, setLoading] = useState(true)
@@ -37,7 +40,8 @@ export default function RecipeDetailPage({ params }: { params: { slug: string } 
           return
         }
 
-        const recipeId = params.slug
+        const { slug: recipeId } = use(params)
+
         const loadedRecipe = await recipeApi.getById(recipeId)
         setRecipe(loadedRecipe)
         setLoading(false)
