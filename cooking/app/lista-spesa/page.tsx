@@ -1,5 +1,5 @@
 "use client"
-
+import { GlovoIntegration } from "./glovo-integration"
 import { useState, useEffect, useCallback } from "react"
 import { Plus, Trash2, Check, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,7 @@ import { toast } from "@/components/ui/use-toast"
 import { shoppingListApi } from "@/lib/api"
 
 interface ShoppingItem {
-  id: string
+  id: string 
   name: string
   quantity: string
   calories?: number
@@ -26,11 +26,14 @@ export default function ShoppingListPage() {
   const [newItem, setNewItem] = useState("")
   const [newQuantity, setNewQuantity] = useState("")
   const [loading, setLoading] = useState(true)
+  const [quantities, setQuantities] = useState<Record<string, string>>({})
+
 
   const fetchItems = useCallback(async () => {
     setLoading(true)
     try {
-      const fetchedItems = await shoppingListApi.getAll()
+      const fetchedItems = await shoppingListApi.getAll() as ShoppingItem[]
+
       setItems(fetchedItems)
     } catch (error) {
       console.error("Errore caricamento lista:", error)
@@ -46,7 +49,8 @@ export default function ShoppingListPage() {
   const addItem = async () => {
     if (!newItem.trim()) return
     try {
-      await shoppingListApi.add({ name: newItem, quantity: newQuantity || "1" })
+      await shoppingListApi.add({ name: newItem, quantity: newQuantity || "1",
+        checked: false,  })
       await fetchItems()
       setNewItem("")
       setNewQuantity("")
@@ -95,7 +99,8 @@ export default function ShoppingListPage() {
         pantryItems.push({
           id: Date.now() + Math.random(),
           name: item.name,
-          quantity: item.quantity,
+          quantity: quantities[item.id] ?? item.quantity,
+
           category: "Altro",
           expiryDate: expiryDate.toISOString(),
           isExpired: false,
@@ -155,6 +160,7 @@ export default function ShoppingListPage() {
           <Button onClick={moveToDispensa}>
             <Check className="mr-2" /> Sposta in Dispensa
           </Button>
+          
         </div>
 
         {["tutti", "da-ricette", "personali"].map((tab) => (
@@ -176,10 +182,20 @@ export default function ShoppingListPage() {
                   <div key={item.id} className="flex justify-between p-4 border rounded-lg">
                     <div className="flex gap-2">
                       <Checkbox checked={item.checked} onCheckedChange={() => toggleItem(item.id, !item.checked)} />
-                      <p className={item.checked ? "line-through text-muted-foreground" : ""}>
-                        {item.name} ({item.quantity})
+                      <div className={item.checked ? "line-through text-muted-foreground" : ""}>
+                      {item.name}
+                      <Input
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9.,]+"
+                      value={quantities[item.id] ?? item.quantity}
+                      onChange={(e) =>
+                      setQuantities((prev) => ({ ...prev, [item.id]: e.target.value }))
+                      }
+                      className="ml-2 w-24 inline-block h-8 text-sm"
+                          />
                         {item.fromRecipe && <Badge className="ml-2">Da: {item.fromRecipe}</Badge>}
-                      </p>
+                      </div>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => deleteItem(item.id)}>
                       <Trash2 />

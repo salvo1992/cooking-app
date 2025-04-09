@@ -57,7 +57,7 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ slug: s
     }
 
     fetchRecipe()
-  }, [params.slug, router])
+  }, [params, router])
 
   // Gestione della selezione degli ingredienti
   const toggleIngredientSelection = (index: number) => {

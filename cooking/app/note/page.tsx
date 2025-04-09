@@ -47,13 +47,17 @@ export default function NotePage() {
 
   // Carica le note dal localStorage all'avvio
   useEffect(() => {
-    try {
-      const loadedNotes = Array.isArray(noteApi.getAll()) ? noteApi.getAll() : []
-      setNotes(loadedNotes)
-      
-    } catch (error) {
-      console.error("Errore durante il caricamento delle note:", error)
+    const fetchNotes = async () => {
+      try {
+        const result = await noteApi.getAll()
+        const loadedNotes = Array.isArray(result) ? result : []
+        setNotes(loadedNotes)
+      } catch (error) {
+        console.error("Errore durante il caricamento delle note:", error)
+      }
     }
+  
+    fetchNotes()
   }, [])
 
   // Filtra le note in base alla ricerca
@@ -97,7 +101,7 @@ export default function NotePage() {
   }
 
   // Salvataggio della nota
-  const handleSaveNote = () => {
+  const handleSaveNote =  async  ()  => {
     try {
       if (!currentNote.title || !currentNote.content) {
         toast({
@@ -110,7 +114,7 @@ export default function NotePage() {
 
       if (isEditing && currentNote.id) {
         // Aggiorna la nota esistente
-        const updatedNote = noteApi.update(currentNote.id, currentNote)
+        const updatedNote = await noteApi.update(currentNote.id, currentNote)
 
         if (updatedNote) {
           setNotes(notes.map((note) => (note.id === currentNote.id ? updatedNote : note)))
@@ -122,11 +126,10 @@ export default function NotePage() {
         }
       } else {
         // Crea una nuova nota
-        const newNote = noteApi.add({
+        const newNote = await noteApi.add({
           title: currentNote.title || "",
           content: currentNote.content || "",
-          date: new Date().toISOString(),
-          category: currentNote.category,
+          category: currentNote.category || "generale",
         })
 
         setNotes([...notes, newNote])
@@ -150,19 +153,17 @@ export default function NotePage() {
   }
 
   // Eliminazione di una nota
-  const handleDeleteNote = (id: number) => {
+  const handleDeleteNote = async (id: string) => {
     if (window.confirm("Sei sicuro di voler eliminare questa nota?")) {
       try {
-        const success = noteApi.delete(id)
-
-        if (success) {
-          setNotes(notes.filter((note) => note.id !== id))
-
-          toast({
-            title: "Nota eliminata",
-            description: "La nota è stata eliminata con successo",
-          })
-        }
+        await noteApi.delete(id.toString())
+  
+        setNotes(notes.filter((note) => note.id !== id.toString()))
+  
+        toast({
+          title: "Nota eliminata",
+          description: "La nota è stata eliminata con successo",
+        })
       } catch (error) {
         console.error("Errore durante l'eliminazione della nota:", error)
         toast({
@@ -173,6 +174,7 @@ export default function NotePage() {
       }
     }
   }
+  
 
   // Formatta la data
   const formatDate = (dateString: string) => {
@@ -262,14 +264,14 @@ export default function NotePage() {
                       </div>
                       <CardDescription className="flex items-center text-xs">
                         <Calendar className="h-3 w-3 mr-1" />
-                        {formatDate(note.date)}
+                        {note.date ? formatDate(note.date) : "Data non disponibile"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pb-2">
                       <p className="text-sm line-clamp-4">{note.content}</p>
                     </CardContent>
                     <CardFooter className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteNote(note.id)}>
+                      <Button variant="ghost" size="icon"onClick={() => note.id && handleDeleteNote(note.id)}>
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Elimina</span>
                       </Button>
@@ -314,14 +316,15 @@ export default function NotePage() {
                           </div>
                           <CardDescription className="flex items-center text-xs">
                             <Calendar className="h-3 w-3 mr-1" />
-                            {formatDate(note.date)}
+                            {note.date ? formatDate(note.date) : "Data non disponibile"}
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="pb-2">
                           <p className="text-sm line-clamp-4">{note.content}</p>
                         </CardContent>
                         <CardFooter className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteNote(note.id)}>
+                          <Button variant="ghost" size="icon" onClick={() => note.id && handleDeleteNote(note.id)}
+                          >
                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Elimina</span>
                           </Button>

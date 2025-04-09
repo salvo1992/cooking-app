@@ -292,7 +292,7 @@ export default function PantryPage() {
             <TabsTrigger value="in-scadenza">
               In Scadenza
               {items.filter((item) => item.isExpiringSoon).length > 0 && (
-                <Badge variant="warning" className="ml-2 bg-yellow-500">
+                <Badge variant="secondary" className="ml-2 bg-yellow-500">
                   {items.filter((item) => item.isExpiringSoon).length}
                 </Badge>
               )}
@@ -354,6 +354,19 @@ interface PantryItemProps {
 }
 
 function PantryItem({ item, onDelete }: PantryItemProps) {
+  const [quantity, setQuantity] = useState(item.quantity)
+  const [expiry, setExpiry] = useState(item.expiryDate.split("T")[0])
+  
+  const handleSave = () => {
+    const updatedItems = JSON.parse(localStorage.getItem("pantryItems") || "[]").map((i: PantryItem) =>
+      i.id === item.id ? { ...i, quantity, expiryDate: new Date(expiry).toISOString() } : i
+    )
+    localStorage.setItem("pantryItems", JSON.stringify(updatedItems))
+    toast({
+      title: "Prodotto aggiornato",
+      description: `${item.name} aggiornato correttamente.`,
+    })
+  }
   return (
     <div
       className={`flex items-center justify-between p-4 border rounded-lg ${
